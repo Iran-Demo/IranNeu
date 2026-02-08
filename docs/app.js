@@ -4,9 +4,22 @@ const statusEl = document.getElementById("status");
 const loadingEl = document.getElementById("loading");
 const errEl = document.getElementById("err");
 
-const SVG_URL = "/IranNeu/docs/assets/ir.svg";
+/**
+ * SVG URL (portable):
+ * چون فایل‌ها داخل /docs هستند، بهترین حالت اینه که مسیر رو نسبت به همین فایل بسازیم.
+ * این باعث میشه هم روی GitHub Pages کار کنه هم لوکال.
+ */
+const SVG_URL = new URL("./assets/ir.svg", window.location.href).href;
 
-
+/**
+ * WebSocket:
+ * GitHub Pages سرور WS نداره. پس باید آدرس WS واقعی رو اینجا بذاری.
+ * اگر خالی/null باشه => وارد حالت demo میشه (نقطه‌ها تستی نمایش داده میشن)
+ *
+ * مثال بعداً:
+ * const WS_URL = "wss://your-backend.onrender.com";
+ */
+const WS_URL = ""; // فعلاً خالی بذار تا Demo فعال بشه
 
 /** تنظیمات */
 const DOT_R = 6;
@@ -71,8 +84,7 @@ function pickPointInsideIran(){
     const p = randXY();
     if (isInsideByMask(p.x, p.y)) return p;
   }
-  // خیلی نادر
-  return randXY();
+  return randXY(); // خیلی نادر
 }
 
 async function buildMaskFromSvg(){
@@ -109,130 +121,4 @@ async function buildMaskFromSvg(){
   await new Promise((resolve, reject) => {
     img.onload = resolve;
     img.onerror = () => reject(new Error("Mask render failed"));
-    img.src = url;
-  });
-
-  const canvas = document.createElement("canvas");
-  canvas.width = maskW;
-  canvas.height = maskH;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-
-  ctx.clearRect(0, 0, maskW, maskH);
-  ctx.drawImage(img, 0, 0, maskW, maskH);
-
-  maskData = ctx.getImageData(0, 0, maskW, maskH).data;
-
-  URL.revokeObjectURL(url);
-}
-
-function installClipPath(){
-  const NS = "http://www.w3.org/2000/svg";
-  const defs = document.createElementNS(NS, "defs");
-  const clip = document.createElementNS(NS, "clipPath");
-  clip.setAttribute("id", "iranClip");
-
-  const paths = [...svg.querySelectorAll("path")].filter(p => (p.getAttribute("d") || "").trim());
-  for (const p of paths){
-    const cp = document.createElementNS(NS, "path");
-    cp.setAttribute("d", p.getAttribute("d"));
-    clip.appendChild(cp);
-  }
-
-  defs.appendChild(clip);
-  svg.prepend(defs);
-
-  gDots = document.createElementNS(NS, "g");
-  gDots.setAttribute("id", "dots");
-  gDots.setAttribute("clip-path", "url(#iranClip)");
-  svg.appendChild(gDots);
-}
-
-function syncDots(n){
-  const cur = dots.size;
-
-  if (n > cur){
-    for (let i = cur + 1; i <= n; i++){
-      const { x, y } = pickPointInsideIran();
-      const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      c.setAttribute("cx", String(x));
-      c.setAttribute("cy", String(y));
-      c.setAttribute("r", String(DOT_R));
-      c.setAttribute("class", "dot");
-      c.setAttribute("data-id", String(i));
-
-      gDots.appendChild(c);
-      dots.set(String(i), c);
-    }
-  } else if (n < cur){
-    for (let i = cur; i > n; i--){
-      const id = String(i);
-      const c = dots.get(id);
-      if (c) c.remove();
-      dots.delete(id);
-    }
-  }
-}
-
-async function initSvg(){
-  showLoading(true);
-  setStatus("لود SVG…");
-
-  const res = await fetch(SVG_URL, { cache: "no-store" });
-  if (!res.ok) throw new Error("SVG not found: public/ir.svg (status " + res.status + ")");
-  const svgText = await res.text();
-
-  mapEl.insertAdjacentHTML("afterbegin", svgText);
-  svg = mapEl.querySelector("svg");
-  if (!svg) throw new Error("Invalid SVG (no <svg>).");
-
-  // viewBox اگر نبود
-  if (!svg.getAttribute("viewBox")){
-    const w = parseFloat(svg.getAttribute("width") || "1000");
-    const h = parseFloat(svg.getAttribute("height") || "900");
-    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-  }
-  vb = svg.viewBox.baseVal;
-
-  // clip + dots layer
-  installClipPath();
-
-  setStatus("ساخت ماسک…");
-  await buildMaskFromSvg();
-
-  showLoading(false);
-  setStatus("آماده ✅");
-}
-
-function initWS(){
-  setStatus("در حال اتصال WS…");
-
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${proto}://${location.host}`);
-
-  ws.addEventListener("open", () => setStatus("وصل شد ✅"));
-  ws.addEventListener("close", () => setStatus("قطع شد ❌"));
-  ws.addEventListener("error", () => setStatus("خطای اتصال ❌"));
-
-  ws.addEventListener("message", (ev) => {
-    let data;
-    try { data = JSON.parse(ev.data); } catch { return; }
-
-    if (data.type === "count"){
-      const n = Number(data.online || 0);
-      countEl.textContent = String(n);
-      syncDots(n);
-    }
-  });
-}
-
-(async function main(){
-  try{
-    await initSvg();
-    initWS();
-  } catch(e){
-    showLoading(false);
-    showError(String(e && e.message ? e.message : e));
-    setStatus("خطا");
-    console.error(e);
-  }
-})();
+    img.src = u
