@@ -4,7 +4,7 @@ const statusEl = document.getElementById("status");
 const loadingEl = document.getElementById("loading");
 const errEl = document.getElementById("err");
 
-const SVG_URL = "./ir.svg";
+const SVG_URL = "./assets/ir.svg";
 
 /** تنظیمات */
 const DOT_R = 6;
@@ -234,3 +234,4 @@ function initWS(){
     console.error(e);
   }
 })();
+
